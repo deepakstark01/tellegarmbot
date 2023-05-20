@@ -40,15 +40,9 @@ for filename in os.listdir(folder_path):
 # ]
 orderOfINdex=0
 ImageIndex=0
-ad_messages = [
-    "🌈 هذه هي الطريقة لتعلم كيفية جني المال",
-    "💼 دعونا نستكشف الفرص لكسب المال",
-    "🚀 رحلتك نحو الحرية المالية تبدأ هنا",
-    "💰 سر الثروة يكمن في التعلم",
-    "🎯 شاهد وتعلم، اكسب ونمو",
-    "🎁 الفرصة تطرق بابك",
-    "💎 استخدم قوة الإعلانات للربح"
-]
+
+with open('description.txt', 'r') as msgData:
+    ad_messages = msgData.read().splitlines()
 
 def load_user_data():
     if os.path.exists('user_data.json'):
@@ -195,10 +189,9 @@ def button(update: Update, context: CallbackContext) -> None:
             for ad in new_ads:
                 global orderOfINdex
                 global ImageIndex
-                if(orderOfINdex>6):
-                    orderOfINdex=0
                 if (ImageIndex >10):
                     orderOfINdex = 0
+                    ImageIndex=0
                 motivational_message = ad_messages[orderOfINdex]
                 image_file = image_files[ImageIndex]
                 combined_message = f"{motivational_message}\n\n{ad}"
@@ -291,8 +284,8 @@ def reply_to_message(update, context):
 
 
 def main():
-    updater = Updater("6185201247: AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4", use_context=True)
-    # updater = Updater("5730090964:AAHRPNAsvUhppMC-V-yg9JEHDbVM7U9at_k", use_context=True)
+    # updater = Updater("6185201247: AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4", use_context=True)
+    updater = Updater("6185201247:AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4k", use_context=True)
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
