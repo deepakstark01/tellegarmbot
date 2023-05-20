@@ -198,7 +198,7 @@ def button(update: Update, context: CallbackContext) -> None:
                     global ImageIndex
                     if(orderOfINdex>6):
                         orderOfINdex=0
-                    if (ImageIndex >=10):
+                    if (ImageIndex >10):
                         orderOfINdex = 0
                     motivational_message = ad_messages[orderOfINdex]
                     image_file = image_files[ImageIndex]
