@@ -41,8 +41,9 @@ for filename in os.listdir(folder_path):
 orderOfINdex=0
 ImageIndex=0
 
-with open('description.txt', 'r') as msgData:
+with open('description.txt', 'r', encoding='utf-8') as msgData:
     ad_messages = msgData.read().splitlines()
+
 
 def load_user_data():
     if os.path.exists('user_data.json'):
@@ -140,6 +141,7 @@ def start(update: Update, context: CallbackContext) -> None:
                                             reply_markup=reply_markup)
 
 def button(update: Update, context: CallbackContext) -> None:
+    global  ad_messages
     query = update.callback_query
     query.answer()
     user_id = str(query.from_user.id)
@@ -189,11 +191,13 @@ def button(update: Update, context: CallbackContext) -> None:
             for ad in new_ads:
                 global orderOfINdex
                 global ImageIndex
-                if (ImageIndex >10):
+                if (ImageIndex >=10):
                     orderOfINdex = 0
                     ImageIndex=0
                 motivational_message = ad_messages[orderOfINdex]
+                print(ImageIndex)
                 image_file = image_files[ImageIndex]
+
                 combined_message = f"{motivational_message}\n\n{ad}"
                 with open(image_file, 'rb') as file:
                     context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
