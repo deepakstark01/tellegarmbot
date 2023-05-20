@@ -39,7 +39,6 @@ for filename in os.listdir(folder_path):
 #     "💎 Unleash the power of ads for earnings"
 # ]
 orderOfINdex=0
-numberOfads=11
 ImageIndex=0
 ad_messages = [
     "🌈 هذه هي الطريقة لتعلم كيفية جني المال",
@@ -191,72 +190,41 @@ def button(update: Update, context: CallbackContext) -> None:
     elif query.data == '5':
         new_ads = get_new_ad_links(user_id, user_data, count=1)
         global numberOfads
-        # if numberOfads<10:
-        #     if new_ads:
-        #         for ad in new_ads:
-        #             global orderOfINdex
-        #             if(orderOfINdex>6):
-        #                 orderOfINdex=0
-        #             motivational_message = ad_messages[orderOfINdex]
-        #             if 'last_ad_date' in user_data:
-        #                 current_date = datetime.date.today()
-        #                 last_ad_date = user_data['last_ad_date']
-        #                 if current_date > last_ad_date:
-        #                     user_data['numberofads'] = 0
-        #
-        #             orderOfINdex+=1
-        #             # Change the order of ad and message here
-        #             combined_message = f"{motivational_message}\n\n{ad}"
-        #             context.bot.send_message(chat_id=user_id, text=combined_message)
-        #         user_data[user_id]['coins'] += len(new_ads)
-        #         user_data[user_id]['ads_watched_today'] += len(new_ads)
-        #         user_data['last_ad_date'] = datetime.date.today()
-        #         save_user_data(user_data)
-        #         rplmsg=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
-        #         # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
-        #         # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
-        #         query.message.reply_text(text=rplmsg, reply_markup=reply_markup)
-        #     else:
-        #         # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
-        #         query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
-        #     numberOfads+=1
-        # else:
-        #     # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
-        #     query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
-        # Assuming the image filenames are stored in a list called 'image_files'
+        if user_data[user_id]['ads_watched_today'] <=10:
+            if new_ads:
+                for ad in new_ads:
+                    print("hey")
+                    global orderOfINdex
+                    global ImageIndex
+                    if(orderOfINdex>6):
+                        orderOfINdex=0
+                    if (ImageIndex >=10):
+                        orderOfINdex = 0
+                    motivational_message = ad_messages[orderOfINdex]
+                    image_file = image_files[ImageIndex]
+                    combined_message = f"{motivational_message}\n\n{ad}"
+                    with open(image_file, 'rb') as file:
+                        context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
+                    ImageIndex+=1
+                    orderOfINdex+=1
 
 
-
-        if new_ads:
-            for ad in new_ads:
-                global orderOfINdex
-                global ImageIndex
-                if(orderOfINdex>6):
-                    orderOfINdex=0
-                if (ImageIndex >=10):
-                    orderOfINdex = 0
-                motivational_message = ad_messages[orderOfINdex]
-                image_file = image_files[ImageIndex]
-                combined_message = f"{motivational_message}\n\n{ad}"
-                with open(image_file, 'rb') as file:
-                    context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
-                ImageIndex+=1
-                orderOfINdex+=1
-
-                # Change the order of ad and message here
-                # combined_message = f"{motivational_message}\n\n{ad}"
-                # context.bot.send_message(chat_id=user_id, text=combined_message)
-            user_data[user_id]['coins'] += len(new_ads)
-            user_data[user_id]['ads_watched_today'] += len(new_ads)
-            save_user_data(user_data)
-            rplmsg=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
-            # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
-            # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
-            query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
+                    # Change the order of ad and message here
+                    # combined_message = f"{motivational_message}\n\n{ad}"
+                    # context.bot.send_message(chat_id=user_id, text=combined_message)
+                user_data[user_id]['coins'] += len(new_ads)
+                user_data[user_id]['ads_watched_today'] += len(new_ads)
+                save_user_data(user_data)
+                rplmsg=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
+                # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
+                # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
+                query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
+            else:
+                # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
+                query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
         else:
             # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
             query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
-        numberOfads+=1
 
     elif query.data == '6':
         if 'name' in context.user_data and 'atrex_username' in context.user_data and 'phone' in context.user_data:
