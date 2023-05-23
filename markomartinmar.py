@@ -3,6 +3,7 @@ import json
 import random
 import logging
 import datetime
+import time
 from datetime import date
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 import pandas as pd
@@ -15,8 +16,6 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 ENTER_NAME, ENTER_AUSERNAME, ENTER_PHONE, ENTER_WITHDRAWAL_AMOUNT = range(4)
-
-
 import os
 
 folder_path = "images"  # Replace with the actual folder path
@@ -94,6 +93,22 @@ def get_new_ad_links(user_id, user_data, count=2):
     else:
         return None
 
+def process_referral(referral_code, referred_user_id, user_data):
+    for user_id, data in user_data.items():
+        if 'referral_code' in data and data['referral_code'] == referral_code:
+            referrer_user_id = user_id
+            break
+    else:
+        # No referrer found with the given referral code
+        return
+    referral_reward=5
+    # Update referrer's data with referral reward
+    user_data[referrer_user_id]['coins'] += referral_reward
+    save_user_data(user_data)
+
+    # Update referred user's data with referral reward
+    user_data[referred_user_id]['coins'] += referral_reward
+    save_user_data(user_data)
 
 def start(update: Update, context: CallbackContext) -> None:
     keyboard = [
@@ -176,12 +191,22 @@ def button(update: Update, context: CallbackContext) -> None:
         query.edit_message_text(text=arabic_text, reply_markup=reply_markup)
 
     elif query.data == '4':
+        invite_code = user_data[user_id]['invite_code']
+        referral_reward = 5
+
+        # Update user's data with referral code
+        user_data[user_id]['referral_code'] = invite_code
+        save_user_data(user_data)
+
+        # Generate referral link with the code
+        referral_link = f"https://example.com/?ref={invite_code}"
         # query.edit_message_text(text=f"Your invite code is {user_data[user_id]['invite_code']}.", reply_markup=reply_markup)
         query.edit_message_text(
             text=f". رمز الدعوة الخاص بك هو:{user_data[user_id]['invite_code']} \n💰 شارك الرمزك مع أصدقائك وكل شخص يأتي من خلال هذا الرابط الخاص بك سوف تكسب 40 درهم",
             reply_markup=reply_markup)
 
         # query.edit_message_text(text=f"رمز الدعوة الخاص بك هو \n 💰 شارك الرمزك مع اصدقائك وكل شخص يأتي من خلال هذا الرابط الخاص بك سوف تكسب 40 درهم{user_data[user_id]['invite_code']}.",reply_markup=reply_markup)
+
 
     elif query.data == '5':
         new_ads = get_new_ad_links(user_id, user_data, count=1)
@@ -191,30 +216,66 @@ def button(update: Update, context: CallbackContext) -> None:
             for ad in new_ads:
                 global orderOfINdex
                 global ImageIndex
-                if (ImageIndex >=10):
+                if ImageIndex >= 10:
                     orderOfINdex = 0
-                    ImageIndex=0
+                    ImageIndex = 0
                 motivational_message = ad_messages[orderOfINdex]
                 print(ImageIndex)
                 image_file = image_files[ImageIndex]
 
                 combined_message = f"{motivational_message}\n\n{ad}"
+                last_ad_timestamp = user_data[user_id].get('last_ad_timestamp', 0)
+                remaining_time = 20 - (time.time() - last_ad_timestamp)
+                if remaining_time > 0:
+                    query.message.reply_text(
+                        text=f"الرجاء الانتظار لمدة {int(remaining_time)} ثانية لعرض الإعلان التالي.")
+                    time.sleep(remaining_time)
+
                 with open(image_file, 'rb') as file:
                     context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
-                ImageIndex+=1
-                orderOfINdex+=1
 
+                ImageIndex += 1
+                orderOfINdex += 1
+                user_data[user_id]['last_ad_timestamp'] = time.time()
 
-                # Change the order of ad and message here
-                # combined_message = f"{motivational_message}\n\n{ad}"
-                # context.bot.send_message(chat_id=user_id, text=combined_message)
             user_data[user_id]['coins'] += len(new_ads)
             user_data[user_id]['ads_watched_today'] += len(new_ads)
             save_user_data(user_data)
-            rplmsg=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
-            # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
-            # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
+            rplmsg = f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
             query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
+
+        # elif query.data == '5':
+    #     new_ads = get_new_ad_links(user_id, user_data, count=1)
+    #     global numberOfads
+    #     # if user_data[user_id]['ads_watched_today'] <=10:
+    #     if new_ads:
+    #         for ad in new_ads:
+    #             global orderOfINdex
+    #             global ImageIndex
+    #             if (ImageIndex >=10):
+    #                 orderOfINdex = 0
+    #                 ImageIndex=0
+    #             motivational_message = ad_messages[orderOfINdex]
+    #             print(ImageIndex)
+    #             image_file = image_files[ImageIndex]
+    #
+    #             combined_message = f"{motivational_message}\n\n{ad}"
+    #             with open(image_file, 'rb') as file:
+    #                 context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
+    #             ImageIndex+=1
+    #             orderOfINdex+=1
+    #
+    #
+    #             # Change the order of ad and message here
+    #             # combined_message = f"{motivational_message}\n\n{ad}"
+    #             # context.bot.send_message(chat_id=user_id, text=combined_message)
+    #         user_data[user_id]['coins'] += len(new_ads)
+    #         user_data[user_id]['ads_watched_today'] += len(new_ads)
+    #         save_user_data(user_data)
+    #         rplmsg=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
+    #         # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
+    #         # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
+    #         query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
         else:
             # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
             query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
