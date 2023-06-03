@@ -5,9 +5,11 @@ import logging
 import datetime
 import time
 from datetime import date
+from datetime import datetime, timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 import pandas as pd
 import openpyxl
+import threading
 from telegram.ext import Updater, CommandHandler, CallbackContext, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -15,7 +17,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-ENTER_NAME, ENTER_AUSERNAME, ENTER_PHONE, ENTER_WITHDRAWAL_AMOUNT = range(4)
+ENTER_CODE,ENTER_NAME, ENTER_AUSERNAME, ENTER_PHONE, ENTER_WITHDRAWAL_AMOUNT = range(5)
+
 import os
 
 folder_path = "images"  # Replace with the actual folder path
@@ -39,7 +42,7 @@ for filename in os.listdir(folder_path):
 # ]
 orderOfINdex=0
 ImageIndex=0
-
+firstRun=1
 with open('description.txt', 'r', encoding='utf-8') as msgData:
     ad_messages = msgData.read().splitlines()
 
@@ -92,23 +95,28 @@ def get_new_ad_links(user_id, user_data, count=2):
         return new_ads
     else:
         return None
-
-def process_referral(referral_code, referred_user_id, user_data):
-    for user_id, data in user_data.items():
-        if 'referral_code' in data and data['referral_code'] == referral_code:
-            referrer_user_id = user_id
-            break
+def process_referral(update,referral_code,user_id):
+    user_data =load_user_data()
+    print
+    if referral_code not in user_data:
+        inviteButton = [
+            InlineKeyboardButton(text="Enter code again", callback_data='8'),
+            InlineKeyboardButton(text="No", callback_data='9')
+        ]
+        reply_invite = InlineKeyboardMarkup(inline_keyboard=[inviteButton])
+        update.message.reply_text(text='code was wrong try again or click No?', reply_markup=reply_invite)
+        
     else:
-        # No referrer found with the given referral code
-        return
-    referral_reward=5
-    # Update referrer's data with referral reward
-    user_data[referrer_user_id]['coins'] += referral_reward
-    save_user_data(user_data)
-
-    # Update referred user's data with referral reward
-    user_data[referred_user_id]['coins'] += referral_reward
-    save_user_data(user_data)
+        user_data[user_id] = {
+            'coins': 5,
+            'ads_watched_today': 0,
+            'invite_code': user_id,
+            'seen_ads': []
+        }
+        
+        update.message.reply_text(text='congratulation verified')
+        user_data[referral_code]['coins'] += 5
+        save_user_data(user_data)
 
 def start(update: Update, context: CallbackContext) -> None:
     keyboard = [
@@ -136,24 +144,37 @@ def start(update: Update, context: CallbackContext) -> None:
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    flag = True
     user_id = str(update.effective_user.id if update.effective_user else update.callback_query.from_user.id)
     user_data = load_user_data()
     if user_id not in user_data:
-        user_data[user_id] = {
-            'coins': 0,
-            'ads_watched_today': 0,
-            'invite_code': user_id,
-            'seen_ads': []
-        }
-        save_user_data(user_data)
+        print(user_id)
+        flag= False
+        inviteButton = [
+            InlineKeyboardButton(text="Enter referral code", callback_data='8'),
+            InlineKeyboardButton(text="No", callback_data='9')
+        ]
+        reply_invite = InlineKeyboardMarkup(inline_keyboard=[inviteButton])
+        update.message.reply_text(text='New user ?', reply_markup=reply_invite)
 
-    if update.effective_message:
-        update.effective_message.reply_text('✅ انت الان في القائمة الرئيسية لتحديث القائمة اضغط /start', reply_markup=reply_markup)
-    else:
-        context.bot.send_message(chat_id=user_id, text='🔝 القائمة الرئيسية')
-        update.effective_message.reply_text('✅ انت الان في القائمة الرئيسية لتحديث القائمة اضغط /start',
+
+
+        # user_data[user_id] = {
+        #     'coins': 0,
+        #     'ads_watched_today': 0,
+        #     'invite_code': user_id,
+        #     'seen_ads': []
+        # }
+        # save_user_data(user_data)
+    if flag:
+        if update.effective_message:
+            update.effective_message.reply_text('✅ انت الان في القائمة الرئيسية لتحديث القائمة اضغط /start', reply_markup=reply_markup)
+        else:
+            context.bot.send_message(chat_id=user_id, text='🔝 القائمة الرئيسية')
+            update.effective_message.reply_text('✅ انت الان في القائمة الرئيسية لتحديث القائمة اضغط /start',
                                             reply_markup=reply_markup)
+
+
 
 def button(update: Update, context: CallbackContext) -> None:
     global  ad_messages
@@ -209,41 +230,68 @@ def button(update: Update, context: CallbackContext) -> None:
 
 
     elif query.data == '5':
-        new_ads = get_new_ad_links(user_id, user_data, count=1)
-        global numberOfads
-        # if user_data[user_id]['ads_watched_today'] <=10:
-        if new_ads:
-            for ad in new_ads:
-                global orderOfINdex
-                global ImageIndex
-                if ImageIndex >= 10:
-                    orderOfINdex = 0
-                    ImageIndex = 0
-                motivational_message = ad_messages[orderOfINdex]
-                print(ImageIndex)
-                image_file = image_files[ImageIndex]
-
-                combined_message = f"{motivational_message}\n\n{ad}"
-                last_ad_timestamp = user_data[user_id].get('last_ad_timestamp', 0)
-                remaining_time = 20 - (time.time() - last_ad_timestamp)
-                if remaining_time > 0:
-                    query.message.reply_text(
-                        text=f"الرجاء الانتظار لمدة {int(remaining_time)} ثانية لعرض الإعلان التالي.")
-                    time.sleep(remaining_time)
-
-                with open(image_file, 'rb') as file:
-                    context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
-
-                ImageIndex += 1
-                orderOfINdex += 1
-                user_data[user_id]['last_ad_timestamp'] = time.time()
-
-            user_data[user_id]['coins'] += len(new_ads)
-            user_data[user_id]['ads_watched_today'] += len(new_ads)
+        global firstRun
+        print(firstRun)
+        if firstRun:
+            remaining_time = 0
+            firstRun = 0
+        else:
+            last_ad_timestamp = user_data[user_id].get('last_ad_timestamp', 0)
+            remaining_time = 20 - (time.time() - last_ad_timestamp)
+        print(remaining_time)
+        if remaining_time > 0:
+            query.message.reply_text(
+                text=
+                f"الرجاء الانتظار لمدة {int(remaining_time)} ثانية لعرض الإعلان التالي.", reply_markup=reply_NextANdHome
+            )
+            # Update the remaining time in user_data
+            user_data[user_id]['remaining_time'] = remaining_time
             save_user_data(user_data)
-            rplmsg = f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
-            query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
+            return
+        last_ad_timestamp = user_data[user_id].get('last_ad_timestamp', 0)
+        last_ad_date = datetime.fromtimestamp(last_ad_timestamp).date()
+        current_date = datetime.now().date()
+        print(f"last ad date = {last_ad_date}\n today date = {current_date}")
+        if current_date > last_ad_date:
+            user_data[user_id]['ads_watched_today'] = 0
+            user_data[user_id]['seen_ads']=[]
+            save_user_data(user_data)
 
+        global numberOfads
+        if user_data[user_id]['ads_watched_today'] <=10:
+            new_ads = get_new_ad_links(user_id, user_data, count=1)
+            print(f"new ads are {new_ads}")
+            if new_ads:
+                for ad in new_ads:
+                    global orderOfINdex
+                    global ImageIndex
+                    if ImageIndex >= 10:
+                        orderOfINdex = 0
+                        ImageIndex = 0
+                    motivational_message = ad_messages[orderOfINdex]
+                    print(ImageIndex)
+                    image_file = image_files[ImageIndex]
+
+                    combined_message = f"{motivational_message}\n\n{ad}"
+                    with open(image_file, 'rb') as file:
+                        context.bot.send_photo(chat_id=user_id, photo=file, caption=combined_message)
+
+                    ImageIndex += 1
+                    orderOfINdex += 1
+                    user_data[user_id]['last_ad_timestamp'] = time.time()
+
+                user_data[user_id]['coins'] += len(new_ads)
+                user_data[user_id]['ads_watched_today'] += len(new_ads)
+                user_data[user_id]['remaining_time'] = 0
+                save_user_data(user_data)
+                rplmsg = f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة."
+                query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
+            else:
+                # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
+                query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
+        else:
+            # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
+            query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
         # elif query.data == '5':
     #     new_ads = get_new_ad_links(user_id, user_data, count=1)
     #     global numberOfads
@@ -276,9 +324,7 @@ def button(update: Update, context: CallbackContext) -> None:
     #         # query.edit_message_text(text=f"You have watched {len(new_ads)} ads and earned {len(new_ads)} coins.", reply_markup=reply_markup)
     #         # query.edit_message_text(text=f"لقد شاهدت {len(new_ads)} إعلانات وحصلت على {len(new_ads)} عملة.")
     #         query.message.reply_text(text=rplmsg, reply_markup=reply_NextANdHome)
-        else:
-            # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
-            query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
+
         # else:
         #     # query.edit_message_text(text="No new ads available at the moment.", reply_markup=reply_markup)
         #     query.edit_message_text(text="لا توجد إعلانات جديدة في الوقت الحالي.", reply_markup=reply_markup)
@@ -305,8 +351,32 @@ def button(update: Update, context: CallbackContext) -> None:
         # query.edit_message_text(text="Please type your first and last name:")
         query.edit_message_text(text="يرجى كتابة الاسم الكامل:")
         return ENTER_NAME
+    
+    elif query.data == '8':
+        query.edit_message_text(text="Enter your refrral code")
+        return ENTER_CODE
+        
+    elif query.data == '9':
+        query.message.reply_text(text="Enter your refrral code")
+        user_data[user_id] = {
+            'coins': 0,
+            'ads_watched_today': 0,
+            'invite_code': user_id,
+            'seen_ads': []
+        }
+        save_user_data(user_data)
     else:
         start(update, context)
+    
+
+def enter_code(update: Update, context: CallbackContext) -> int:
+    user_id = str(update.effective_user.id)
+    context.user_data['code']=update.message.text
+    user_entered_code = update.message.text
+    print("user id =", user_id, "user code =", user_entered_code)
+    process_referral(update,user_entered_code,user_id)
+    return ConversationHandler.END
+
 
 def enter_name(update: Update, context: CallbackContext) -> int:
     context.user_data['name'] = update.message.text
@@ -349,24 +419,27 @@ def reply_to_message(update, context):
 
 
 def main():
-    # updater = Updater("6185201247: AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4", use_context=True)
-    updater = Updater("6185201247:AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4k", use_context=True)
+    updater = Updater("5730090964:AAHRPNAsvUhppMC-V-yg9JEHDbVM7U9at_k", use_context=True)
+    # updater = Updater("6185201247:AAG2pWH6gxxHsDeAijHRWBbxDN9dvslcL4k", use_context=True)
     dp = updater.dispatcher
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start), CallbackQueryHandler(button)],
         states={
+            ENTER_CODE:[MessageHandler(Filters.text & ~Filters.command, enter_code)],
             ENTER_NAME: [MessageHandler(Filters.text & ~Filters.command, enter_name)],
             ENTER_AUSERNAME: [MessageHandler(Filters.text & ~Filters.command, enter_ausername)],
             ENTER_PHONE: [MessageHandler(Filters.text & ~Filters.command, enter_phone)],
             ENTER_WITHDRAWAL_AMOUNT: [MessageHandler(Filters.text & ~Filters.command, enter_withdrawal_amount)],
         },
-        fallbacks=[CommandHandler('start', start)],
+        # fallbacks=[CommandHandler('start', start)],
+        fallbacks=[CommandHandler('start', start)]
     )
 
     dp.add_handler(conv_handler)
     dp.add_handler(
         MessageHandler(Filters.text & ~Filters.command, reply_to_message))
+
 
     updater.start_polling()
 
